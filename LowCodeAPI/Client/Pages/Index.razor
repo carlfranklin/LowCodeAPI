@@ -1,0 +1,212 @@
+﻿@page "/"
+@inject AuthorsManager AuthorsManager
+
+@if (Authors != null)
+{
+    <span>&nbsp;Search by Name:&nbsp;</span>
+    <input @bind="@SearchName" />
+    <span>&nbsp;</span>
+    <button @onclick="Search">Search by Last Name</button>
+    <span>&nbsp;</span>
+    <button @onclick="Get">Get by Last Name</button>
+    <br />
+    <br />
+
+    <button @onclick="GetAllAuthors">Show All</button>
+    @if (CanIAddaAuthor())
+    {
+        <button @onclick="AddAuthor">Add Author</button>
+    }
+    <br />
+    <br />
+    <select @onchange="AuthorSelected" size="10" style="width:100%;">
+        @foreach (var Author in Authors)
+        {
+            <option value="@Author.AuId">@Author.AuFname&nbsp;@Author.AuLname</option>
+        }
+    </select>
+    <br />
+    <br />
+}
+else
+{
+    <i>Loading Authors...</i>
+}
+@if (Author != null)
+{
+    <span>&nbsp;Update Last Name:&nbsp;</span>
+    <input @bind="@Author.AuLname" />
+    <button @onclick="UpdateAuthor">Update</button>
+    <br />
+    <br />
+    <button @onclick="DeleteAuthor">Delete</button>
+
+}
+<br />
+<span style="color:red;">@ErrorMessage</span>
+
+@code
+{
+    List<Authors> Authors;
+    Authors Author;
+    string SearchName = "";
+    string ErrorMessage = "";
+
+    async Task DeleteAuthor()
+    {
+        ErrorMessage = "";
+        if (await AuthorsManager.Delete(Author))
+        {
+            var original = (from x in Authors
+                            where x.AuId == Author.AuId
+                            select x).FirstOrDefault();
+            if (original != null)
+            {
+                var index = Authors.IndexOf(original);
+                Authors.RemoveAt(index);
+                Author = null;
+            }
+        }
+        else
+        {
+            ErrorMessage = "Could not delete Author.";
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    async Task UpdateAuthor()
+    {
+        ErrorMessage = "";
+        var original = (from x in Authors
+                        where x.AuId == Author.AuId
+                        select x).FirstOrDefault();
+        if (original != null)
+        {
+            var index = Authors.IndexOf(original);
+            var updated = await AuthorsManager.Update(Author);
+            if (updated != null)
+            {
+                Authors[index] = updated;
+            }
+            else
+            {
+                ErrorMessage = "Could not update Author";
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    async Task Search()
+    {
+        ErrorMessage = "";
+        var result = await AuthorsManager.SearchByValue("AuLname", SearchName);
+        if (result != null)
+        {
+            Authors = result.ToList<Authors>();
+        }
+        else
+        {
+            Authors = new List<Authors>();
+            ErrorMessage = "No matching Authors.";
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    async Task Get()
+    {
+        ErrorMessage = "";
+        var result = await AuthorsManager.GetByValue("AuLname", SearchName);
+        if (result != null)
+        {
+            Authors.Clear();
+            Authors.Add(result);
+        }
+        else
+        {
+            Authors = new List<Authors>();
+            ErrorMessage = "No matching Authors.";
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    async Task AuthorSelected(ChangeEventArgs args)
+    {
+        ErrorMessage = "";
+        var result = (from x in Authors
+                      where x.AuId == args.Value.ToString()
+                      select x).FirstOrDefault();
+
+        // Get the Author via the API just to exercise all the methods:
+        Author = await AuthorsManager.GetByValue("AuId", result.AuId);
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    bool CanIAddaAuthor()
+    {
+        // only if it doesn't exist
+        var existing = (from x in Authors
+                        where x.AuId == "111-22-3333"
+                        select x).FirstOrDefault();
+        if (existing != null)
+            return false;
+        else
+            return true;
+    }
+
+    async Task AddAuthor()
+    {
+        ErrorMessage = "";
+        var Author = new Authors();
+        Author.AuId = "111-22-3333";
+        Author.AuFname = "Carl";
+        Author.AuLname = "Franklin";
+        Author.Phone = "123123132";
+        Author.Address = "1 Somewhere Street";
+        Author.City = "Anytown";
+        Author.State = "CT";
+        Author.Zip = "09876";
+        Author.Contract = true;
+
+        var result = await AuthorsManager.Insert(Author);
+        if (result != null)
+        {
+            Authors.Add(result);
+            Author = result;
+        }
+        else
+        {
+            ErrorMessage = "Could not add Author";
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    async Task GetAllAuthors()
+    {
+        ErrorMessage = "";
+        SearchName = "";
+        try
+        {
+            var result = await AuthorsManager.GetAll();
+            if (result != null)
+            {
+                Authors = result.ToList<Authors>();
+                Author = null;
+            }
+            else
+            {
+                ErrorMessage = "Could not fetch Authors";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetAllAuthors();
+    }
+
+}
