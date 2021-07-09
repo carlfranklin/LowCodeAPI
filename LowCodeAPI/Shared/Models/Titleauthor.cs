@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 
+#nullable disable
+
 namespace LowCodeAPI.Shared.Models
 {
     public partial class Titleauthor
@@ -10,7 +12,7 @@ namespace LowCodeAPI.Shared.Models
         public byte? AuOrd { get; set; }
         public int? Royaltyper { get; set; }
 
-        public virtual Authors Au { get; set; }
-        public virtual Titles Title { get; set; }
+        public virtual Author Au { get; set; }
+        public virtual Title Title { get; set; }
     }
 }

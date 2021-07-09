@@ -1,13 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 
+#nullable disable
+
 namespace LowCodeAPI.Shared.Models
 {
-    public partial class Stores
+    public partial class Store
     {
-        public Stores()
+        public Store()
         {
-            Sales = new HashSet<Sales>();
+            Sales = new HashSet<Sale>();
         }
 
         public string StorId { get; set; }
@@ -17,6 +19,6 @@ namespace LowCodeAPI.Shared.Models
         public string State { get; set; }
         public string Zip { get; set; }
 
-        public virtual ICollection<Sales> Sales { get; set; }
+        public virtual ICollection<Sale> Sales { get; set; }
     }
 }

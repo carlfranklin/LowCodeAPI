@@ -1,18 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
 
+#nullable disable
+
 namespace LowCodeAPI.Shared.Models
 {
-    public partial class Titles
+    public partial class Title
     {
-        public Titles()
+        public Title()
         {
-            Sales = new HashSet<Sales>();
-            Titleauthor = new HashSet<Titleauthor>();
+            Sales = new HashSet<Sale>();
+            Titleauthors = new HashSet<Titleauthor>();
         }
 
         public string TitleId { get; set; }
-        public string Title { get; set; }
+        public string Title1 { get; set; }
         public string Type { get; set; }
         public string PubId { get; set; }
         public decimal? Price { get; set; }
@@ -22,8 +24,8 @@ namespace LowCodeAPI.Shared.Models
         public string Notes { get; set; }
         public DateTime Pubdate { get; set; }
 
-        public virtual Publishers Pub { get; set; }
-        public virtual ICollection<Sales> Sales { get; set; }
-        public virtual ICollection<Titleauthor> Titleauthor { get; set; }
+        public virtual Publisher Pub { get; set; }
+        public virtual ICollection<Sale> Sales { get; set; }
+        public virtual ICollection<Titleauthor> Titleauthors { get; set; }
     }
 }

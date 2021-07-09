@@ -1,13 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 
+#nullable disable
+
 namespace LowCodeAPI.Shared.Models
 {
-    public partial class Authors
+    public partial class Author
     {
-        public Authors()
+        public Author()
         {
-            Titleauthor = new HashSet<Titleauthor>();
+            Titleauthors = new HashSet<Titleauthor>();
         }
 
         public string AuId { get; set; }
@@ -20,6 +22,6 @@ namespace LowCodeAPI.Shared.Models
         public string Zip { get; set; }
         public bool Contract { get; set; }
 
-        public virtual ICollection<Titleauthor> Titleauthor { get; set; }
+        public virtual ICollection<Titleauthor> Titleauthors { get; set; }
     }
 }

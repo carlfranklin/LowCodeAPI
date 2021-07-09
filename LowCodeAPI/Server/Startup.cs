@@ -28,7 +28,7 @@ namespace LowCodeAPI.Server
             services.AddTransient<pubsContext, pubsContext>();
 
             // Next, add an EFRepository for each model you want a controller for
-            services.AddTransient<EFRepository<Authors, pubsContext>>();
+            services.AddTransient<EFRepository<Author, pubsContext>>();
 
             services.AddControllersWithViews();
             services.AddRazorPages();

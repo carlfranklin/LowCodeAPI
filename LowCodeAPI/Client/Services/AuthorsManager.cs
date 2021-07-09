@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace LowCodeAPI.Client.Services
 {
-    public class AuthorsManager : APIRepository<Authors>
+    public class AuthorsManager : APIRepository<Author>
     {
         HttpClient http;
 

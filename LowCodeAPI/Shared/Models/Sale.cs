@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 
+#nullable disable
+
 namespace LowCodeAPI.Shared.Models
 {
-    public partial class Sales
+    public partial class Sale
     {
         public string StorId { get; set; }
         public string OrdNum { get; set; }
@@ -12,7 +14,7 @@ namespace LowCodeAPI.Shared.Models
         public string Payterms { get; set; }
         public string TitleId { get; set; }
 
-        public virtual Stores Stor { get; set; }
-        public virtual Titles Title { get; set; }
+        public virtual Store Stor { get; set; }
+        public virtual Title Title { get; set; }
     }
 }

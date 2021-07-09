@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 
+#nullable disable
+
 namespace LowCodeAPI.Shared.Models
 {
     public partial class Employee
@@ -14,7 +16,7 @@ namespace LowCodeAPI.Shared.Models
         public string PubId { get; set; }
         public DateTime HireDate { get; set; }
 
-        public virtual Jobs Job { get; set; }
-        public virtual Publishers Pub { get; set; }
+        public virtual Job Job { get; set; }
+        public virtual Publisher Pub { get; set; }
     }
 }

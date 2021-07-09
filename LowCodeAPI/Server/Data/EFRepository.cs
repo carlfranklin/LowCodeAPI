@@ -6,89 +6,86 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 
-namespace LowCodeAPI.Server.Data
+public class EFRepository<TEntity, TDataContext> : IRepository<TEntity>
+    where TEntity : class
+    where TDataContext : DbContext
 {
-    public class EFRepository<TEntity, TDataContext> : IRepository<TEntity>
-        where TEntity : class
-        where TDataContext : DbContext
+    protected readonly TDataContext context;
+    internal DbSet<TEntity> dbSet;
+
+    public EFRepository(TDataContext dataContext)
     {
-        protected readonly TDataContext context;
-        internal DbSet<TEntity> dbSet;
+        context = dataContext;
+        context.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+        dbSet = context.Set<TEntity>();
+    }
 
-        public EFRepository(TDataContext dataContext)
-        {
-            context = dataContext;
-            context.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
-            dbSet = context.Set<TEntity>();
-        }
+    public virtual async Task<IEnumerable<TEntity>> GetAll()
+    {
+        await Task.Delay(1);
+        return dbSet;
+    }
 
-        public virtual async Task<IEnumerable<TEntity>> GetAll()
+    public virtual async Task<IEnumerable<TEntity>> Get(Expression<Func<TEntity, bool>> filter = null, Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>> orderBy = null, string includeProperties = "")
+    {
+        try
         {
-            await Task.Delay(1);
-            return dbSet;
-        }
+            // Get the dbSet from the Entity passed in                
+            IQueryable<TEntity> query = dbSet;
 
-        public virtual async Task<IEnumerable<TEntity>> Get(Expression<Func<TEntity, bool>> filter = null, Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>> orderBy = null, string includeProperties = "")
-        {
-            try
+            // Apply the filter
+            if (filter != null)
             {
-                // Get the dbSet from the Entity passed in                
-                IQueryable<TEntity> query = dbSet;
-
-                // Apply the filter
-                if (filter != null)
-                {
-                    query = query.Where(filter);
-                }
-
-                // Include the specified properties
-                foreach (var includeProperty in includeProperties.Split
-                    (new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
-                {
-                    query = query.Include(includeProperty);
-                }
-
-                // Sort
-                if (orderBy != null)
-                {
-                    return orderBy(query).ToList();
-                }
-                else
-                {
-                    return await query.ToListAsync();
-                }
+                query = query.Where(filter);
             }
-            catch (Exception ex)
+
+            // Include the specified properties
+            foreach (var includeProperty in includeProperties.Split
+                (new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
             {
-                var msg = ex.Message;
-                return null;
+                query = query.Include(includeProperty);
+            }
+
+            // Sort
+            if (orderBy != null)
+            {
+                return orderBy(query).ToList();
+            }
+            else
+            {
+                return await query.ToListAsync();
             }
         }
-
-        public virtual async Task<TEntity> Insert(TEntity entity)
+        catch (Exception ex)
         {
-            await dbSet.AddAsync(entity);
-            await context.SaveChangesAsync();
-            return entity;
+            var msg = ex.Message;
+            return null;
         }
+    }
 
-        public virtual async Task<TEntity> Update(TEntity entityToUpdate)
-        {
-            var dbSet = context.Set<TEntity>();
-            dbSet.Attach(entityToUpdate);
-            context.Entry(entityToUpdate).State = EntityState.Modified;
-            await context.SaveChangesAsync();
-            return entityToUpdate;
-        }
+    public virtual async Task<TEntity> Insert(TEntity entity)
+    {
+        await dbSet.AddAsync(entity);
+        await context.SaveChangesAsync();
+        return entity;
+    }
 
-        public virtual async Task<bool> Delete(TEntity entityToDelete)
+    public virtual async Task<TEntity> Update(TEntity entityToUpdate)
+    {
+        var dbSet = context.Set<TEntity>();
+        dbSet.Attach(entityToUpdate);
+        context.Entry(entityToUpdate).State = EntityState.Modified;
+        await context.SaveChangesAsync();
+        return entityToUpdate;
+    }
+
+    public virtual async Task<bool> Delete(TEntity entityToDelete)
+    {
+        if (context.Entry(entityToDelete).State == EntityState.Detached)
         {
-            if (context.Entry(entityToDelete).State == EntityState.Detached)
-            {
-                dbSet.Attach(entityToDelete);
-            }
-            dbSet.Remove(entityToDelete);
-            return await context.SaveChangesAsync() >= 1;
+            dbSet.Attach(entityToDelete);
         }
+        dbSet.Remove(entityToDelete);
+        return await context.SaveChangesAsync() >= 1;
     }
 }

@@ -1,14 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 
+#nullable disable
+
 namespace LowCodeAPI.Shared.Models
 {
-    public partial class Publishers
+    public partial class Publisher
     {
-        public Publishers()
+        public Publisher()
         {
-            Employee = new HashSet<Employee>();
-            Titles = new HashSet<Titles>();
+            Employees = new HashSet<Employee>();
+            Titles = new HashSet<Title>();
         }
 
         public string PubId { get; set; }
@@ -18,7 +20,7 @@ namespace LowCodeAPI.Shared.Models
         public string Country { get; set; }
 
         public virtual PubInfo PubInfo { get; set; }
-        public virtual ICollection<Employee> Employee { get; set; }
-        public virtual ICollection<Titles> Titles { get; set; }
+        public virtual ICollection<Employee> Employees { get; set; }
+        public virtual ICollection<Title> Titles { get; set; }
     }
 }

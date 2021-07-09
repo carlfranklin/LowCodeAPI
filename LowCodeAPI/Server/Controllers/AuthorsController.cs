@@ -10,11 +10,11 @@ namespace LowCodeAPI.Server.Controllers
 {
     [Route("[controller]")]
     [ApiController]
-    public class AuthorsController : EFControllerBase<Authors, pubsContext>
+    public class AuthorsController : EFControllerBase<Author, pubsContext>
     {
-        EFRepository<Authors, pubsContext> repository;
+        EFRepository<Author, pubsContext> repository;
 
-        public AuthorsController(EFRepository<Authors, pubsContext> _repository) 
+        public AuthorsController(EFRepository<Author, pubsContext> _repository) 
             : base(_repository)
         {
             repository = _repository;

@@ -15,6 +15,7 @@
     <button @onclick="GetAllAuthors">Show All</button>
     @if (CanIAddaAuthor())
     {
+        <span>&nbsp;</span>
         <button @onclick="AddAuthor">Add Author</button>
     }
     <br />
@@ -47,8 +48,8 @@ else
 
 @code
 {
-    List<Authors> Authors;
-    Authors Author;
+    List<Author> Authors;
+    Author Author;
     string SearchName = "";
     string ErrorMessage = "";
 
@@ -102,11 +103,11 @@ else
         var result = await AuthorsManager.SearchByValue("AuLname", SearchName);
         if (result != null)
         {
-            Authors = result.ToList<Authors>();
+            Authors = result.ToList<Author>();
         }
         else
         {
-            Authors = new List<Authors>();
+            Authors = new List<Author>();
             ErrorMessage = "No matching Authors.";
         }
         await InvokeAsync(StateHasChanged);
@@ -123,7 +124,7 @@ else
         }
         else
         {
-            Authors = new List<Authors>();
+            Authors = new List<Author>();
             ErrorMessage = "No matching Authors.";
         }
         await InvokeAsync(StateHasChanged);
@@ -157,7 +158,7 @@ else
     async Task AddAuthor()
     {
         ErrorMessage = "";
-        var Author = new Authors();
+        var Author = new Author();
         Author.AuId = "111-22-3333";
         Author.AuFname = "Carl";
         Author.AuLname = "Franklin";
@@ -190,7 +191,7 @@ else
             var result = await AuthorsManager.GetAll();
             if (result != null)
             {
-                Authors = result.ToList<Authors>();
+                Authors = result.ToList<Author>();
                 Author = null;
             }
             else
@@ -208,5 +209,4 @@ else
     {
         await GetAllAuthors();
     }
-
 }

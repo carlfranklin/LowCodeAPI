@@ -1,13 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 
+#nullable disable
+
 namespace LowCodeAPI.Shared.Models
 {
-    public partial class Jobs
+    public partial class Job
     {
-        public Jobs()
+        public Job()
         {
-            Employee = new HashSet<Employee>();
+            Employees = new HashSet<Employee>();
         }
 
         public short JobId { get; set; }
@@ -15,6 +17,6 @@ namespace LowCodeAPI.Shared.Models
         public byte MinLvl { get; set; }
         public byte MaxLvl { get; set; }
 
-        public virtual ICollection<Employee> Employee { get; set; }
+        public virtual ICollection<Employee> Employees { get; set; }
     }
 }

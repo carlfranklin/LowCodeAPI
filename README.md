@@ -22,7 +22,7 @@ This script is in the repo, and was downloaded from https://github.com/microsoft
 
 The sample app already has the models and dbContext, but if you want to generate them for your own project, you can follow the instructions at https://docs.microsoft.com/en-us/ef/core/cli/dotnet
 
-- Make sure you have these packages in your Client project's *.csproj* file:
+- Make sure you have these packages in your Server project's *.csproj* file:
 
   ```
   <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="5.0.0" />
@@ -30,13 +30,12 @@ The sample app already has the models and dbContext, but if you want to generate
   <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="5.0.0" />
   ```
 
-- Open a command window and execute this command: 
+- Open a command window in the *Server* project directory and execute this command: 
 
   ```
-  dotnet ef dbcontext scaffold "Data Source=(localdb)\MSSQLLocalDB;Initial Catalog=pubs" 
-  Microsoft.EntityFrameworkCore.SqlServer --context-dir Data --output-dir Models
+  dotnet ef dbcontext scaffold "Data Source=(localdb)\MSSQLLocalDB;Initial Catalog=pubs" Microsoft.EntityFrameworkCore.SqlServer --context-dir Data --output-dir Models
   ```
-
+  
 - If you get an error you may need to install the dotnet-ef CLI tool:
 
   ```
@@ -47,7 +46,13 @@ The sample app already has the models and dbContext, but if you want to generate
 
 - Rename the namespaces in each model accordingly.
 
-- Rename the models namespace in the `dbContext` file (*pubsContext.cs*).
+- Rename the models namespace in the `dbContext` file (*pubsContext.cs*)":
+
+  ```c#
+  using LowCodeAPI.Shared.Models;
+  ```
+
+  
 
 ## LowCodeAPI Required Files
 
@@ -65,19 +70,16 @@ using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace LowCodeAPI.Shared.Models
+public interface IRepository<TEntity> where TEntity : class
 {
-    public interface IRepository<TEntity> where TEntity : class
-    {
-        Task<IEnumerable<TEntity>> GetAll();
-        Task<IEnumerable<TEntity>> Get(
-            Expression<Func<TEntity, bool>> filter = null,
-            Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>> orderBy = null,
-            string includeProperties = "");
-        Task<TEntity> Insert(TEntity entity);
-        Task<TEntity> Update(TEntity entityToUpdate);
-        Task<bool> Delete(TEntity entityToDelete);
-    }
+    Task<IEnumerable<TEntity>> GetAll();
+    Task<IEnumerable<TEntity>> Get(
+        Expression<Func<TEntity, bool>> filter = null,
+        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>> orderBy = null,
+        string includeProperties = "");
+    Task<TEntity> Insert(TEntity entity);
+    Task<TEntity> Update(TEntity entityToUpdate);
+    Task<bool> Delete(TEntity entityToDelete);
 }
 ```
 
@@ -96,90 +98,87 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 
-namespace LowCodeAPI.Server.Data
+public class EFRepository<TEntity, TDataContext> : IRepository<TEntity>
+    where TEntity : class
+    where TDataContext : DbContext
 {
-    public class EFRepository<TEntity, TDataContext> : IRepository<TEntity>
-        where TEntity : class
-        where TDataContext : DbContext
+    protected readonly TDataContext context;
+    internal DbSet<TEntity> dbSet;
+
+    public EFRepository(TDataContext dataContext)
     {
-        protected readonly TDataContext context;
-        internal DbSet<TEntity> dbSet;
+        context = dataContext;
+        context.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+        dbSet = context.Set<TEntity>();
+    }
 
-        public EFRepository(TDataContext dataContext)
-        {
-            context = dataContext;
-            context.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
-            dbSet = context.Set<TEntity>();
-        }
+    public virtual async Task<IEnumerable<TEntity>> GetAll()
+    {
+        await Task.Delay(1);
+        return dbSet;
+    }
 
-        public virtual async Task<IEnumerable<TEntity>> GetAll()
+    public virtual async Task<IEnumerable<TEntity>> Get(Expression<Func<TEntity, bool>> filter = null, Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>> orderBy = null, string includeProperties = "")
+    {
+        try
         {
-            await Task.Delay(1);
-            return dbSet;
-        }
+            // Get the dbSet from the Entity passed in                
+            IQueryable<TEntity> query = dbSet;
 
-        public virtual async Task<IEnumerable<TEntity>> Get(Expression<Func<TEntity, bool>> filter = null, Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>> orderBy = null, string includeProperties = "")
-        {
-            try
+            // Apply the filter
+            if (filter != null)
             {
-                // Get the dbSet from the Entity passed in                
-                IQueryable<TEntity> query = dbSet;
-
-                // Apply the filter
-                if (filter != null)
-                {
-                    query = query.Where(filter);
-                }
-
-                // Include the specified properties
-                foreach (var includeProperty in includeProperties.Split
-                    (new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
-                {
-                    query = query.Include(includeProperty);
-                }
-
-                // Sort
-                if (orderBy != null)
-                {
-                    return orderBy(query).ToList();
-                }
-                else
-                {
-                    return await query.ToListAsync();
-                }
+                query = query.Where(filter);
             }
-            catch (Exception ex)
+
+            // Include the specified properties
+            foreach (var includeProperty in includeProperties.Split
+                (new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
             {
-                var msg = ex.Message;
-                return null;
+                query = query.Include(includeProperty);
+            }
+
+            // Sort
+            if (orderBy != null)
+            {
+                return orderBy(query).ToList();
+            }
+            else
+            {
+                return await query.ToListAsync();
             }
         }
-
-        public virtual async Task<TEntity> Insert(TEntity entity)
+        catch (Exception ex)
         {
-            await dbSet.AddAsync(entity);
-            await context.SaveChangesAsync();
-            return entity;
+            var msg = ex.Message;
+            return null;
         }
+    }
 
-        public virtual async Task<TEntity> Update(TEntity entityToUpdate)
-        {
-            var dbSet = context.Set<TEntity>();
-            dbSet.Attach(entityToUpdate);
-            context.Entry(entityToUpdate).State = EntityState.Modified;
-            await context.SaveChangesAsync();
-            return entityToUpdate;
-        }
+    public virtual async Task<TEntity> Insert(TEntity entity)
+    {
+        await dbSet.AddAsync(entity);
+        await context.SaveChangesAsync();
+        return entity;
+    }
 
-        public virtual async Task<bool> Delete(TEntity entityToDelete)
+    public virtual async Task<TEntity> Update(TEntity entityToUpdate)
+    {
+        var dbSet = context.Set<TEntity>();
+        dbSet.Attach(entityToUpdate);
+        context.Entry(entityToUpdate).State = EntityState.Modified;
+        await context.SaveChangesAsync();
+        return entityToUpdate;
+    }
+
+    public virtual async Task<bool> Delete(TEntity entityToDelete)
+    {
+        if (context.Entry(entityToDelete).State == EntityState.Detached)
         {
-            if (context.Entry(entityToDelete).State == EntityState.Detached)
-            {
-                dbSet.Attach(entityToDelete);
-            }
-            dbSet.Remove(entityToDelete);
-            return await context.SaveChangesAsync() >= 1;
+            dbSet.Attach(entityToDelete);
         }
+        dbSet.Remove(entityToDelete);
+        return await context.SaveChangesAsync() >= 1;
     }
 }
 ```
@@ -193,14 +192,11 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace LowCodeAPI.Shared.Models
+public class APIEntityResponse<TEntity> where TEntity : class
 {
-    public class APIEntityResponse<TEntity> where TEntity : class
-    {
-        public bool Success { get; set; }
-        public List<string> ErrorMessages { get; set; } = new List<string>();
-        public TEntity Data { get; set; }
-    }
+    public bool Success { get; set; }
+    public List<string> ErrorMessages { get; set; } = new List<string>();
+    public TEntity Data { get; set; }
 }
 ```
 
@@ -213,14 +209,11 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace LowCodeAPI.Shared.Models
+public class APIListOfEntityResponse<TEntity> where TEntity : class
 {
-    public class APIListOfEntityResponse<TEntity> where TEntity : class
-    {
-        public bool Success { get; set; }
-        public List<string> ErrorMessages { get; set; } = new List<string>();
-        public IEnumerable<TEntity> Data { get; set; }
-    }
+    public bool Success { get; set; }
+    public List<string> ErrorMessages { get; set; } = new List<string>();
+    public IEnumerable<TEntity> Data { get; set; }
 }
 ```
 
@@ -238,173 +231,170 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace LowCodeAPI.Server.Controllers
+public class EFControllerBase<TEntity, TDataContext> : ControllerBase
+    where TEntity : class
+    where TDataContext : DbContext
 {
-    public class EFControllerBase<TEntity, TDataContext> : ControllerBase 
-        where TEntity: class
-        where TDataContext : DbContext
+    private EFRepository<TEntity, TDataContext> repository;
+
+    public EFControllerBase(EFRepository<TEntity, TDataContext> _repository)
     {
-        private EFRepository<TEntity, TDataContext> repository;
+        repository = _repository;
+    }
 
-        public EFControllerBase(EFRepository<TEntity, TDataContext> _repository)
+    [HttpGet]
+    public async Task<ActionResult<APIListOfEntityResponse<TEntity>>> GetAll()
+    {
+        try
         {
-            repository = _repository;
-        }
-
-        [HttpGet]
-        public async Task<ActionResult<APIListOfEntityResponse<TEntity>>> GetAll()
-        {
-            try
+            var result = await repository.GetAll();
+            return Ok(new APIListOfEntityResponse<TEntity>()
             {
-                var result = await repository.GetAll();
+                Success = true,
+                Data = result
+            });
+        }
+        catch (Exception ex)
+        {
+            // log exception here
+            return StatusCode(500);
+        }
+    }
+
+    [HttpGet("{PropertyName}/{Value}/GetByValue")]
+    public async Task<ActionResult<APIEntityResponse<TEntity>>> GetByValue(string PropertyName, string Value)
+    {
+
+        await Task.Delay(0);
+        try
+        {
+            var IdProperty = typeof(TEntity).GetProperty(PropertyName);
+            var result = (from x in repository.dbSet.ToList()
+                          where IdProperty.GetValue(x).ToString().ToLower() == Value.ToLower()
+                          select x).FirstOrDefault();
+            if (result != null)
+            {
+                return Ok(new APIEntityResponse<TEntity>()
+                {
+                    Success = true,
+                    Data = result
+                });
+            }
+            else
+            {
+                return Ok(new APIEntityResponse<TEntity>()
+                {
+                    Success = false,
+                    ErrorMessages = new List<string>() { "Entity Not Found" },
+                    Data = null
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            // log exception here
+            return StatusCode(500);
+        }
+    }
+
+    [HttpGet("{PropertyName}/{Value}/SearchByValue")]
+    public async Task<ActionResult<APIListOfEntityResponse<TEntity>>> SearchByValue(string PropertyName, string Value)
+    {
+        await Task.Delay(0);
+        try
+        {
+            var IdProperty = typeof(TEntity).GetProperty(PropertyName);
+            var result = (from x in repository.dbSet.ToList()
+                          where IdProperty.GetValue(x).ToString().ToLower().Contains(Value.ToLower())
+                          select x);
+            if (result != null)
+            {
                 return Ok(new APIListOfEntityResponse<TEntity>()
                 {
                     Success = true,
                     Data = result
                 });
             }
-            catch (Exception ex)
+            else
             {
-                // log exception here
-                return StatusCode(500);
-            }
-        }
-
-        [HttpGet("{PropertyName}/{Value}/GetByValue")]
-        public async Task<ActionResult<APIEntityResponse<TEntity>>> GetByValue(string PropertyName, string Value)
-        {
-            
-            await Task.Delay(0);
-            try
-            {
-                var IdProperty = typeof(TEntity).GetProperty(PropertyName);
-                var result = (from x in repository.dbSet.ToList()
-                              where IdProperty.GetValue(x).ToString().ToLower() == Value.ToLower() 
-                              select x).FirstOrDefault();
-                if (result != null)
+                return Ok(new APIListOfEntityResponse<TEntity>()
                 {
-                    return Ok(new APIEntityResponse<TEntity>()
-                    {
-                        Success = true,
-                        Data = result
-                    });
-                }
-                else
-                {
-                    return Ok(new APIEntityResponse<TEntity>()
-                    {
-                        Success = false,
-                        ErrorMessages = new List<string>() { "Entity Not Found" },
-                        Data = null
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                // log exception here
-                return StatusCode(500);
-            }
-        }
-
-        [HttpGet("{PropertyName}/{Value}/SearchByValue")]
-        public async Task<ActionResult<APIListOfEntityResponse<TEntity>>> SearchByValue(string PropertyName, string Value)
-        {
-            await Task.Delay(0);
-            try
-            {
-                var IdProperty = typeof(TEntity).GetProperty(PropertyName);
-                var result = (from x in repository.dbSet.ToList() 
-                              where IdProperty.GetValue(x).ToString().ToLower().Contains(Value.ToLower()) 
-                              select x);
-                if (result != null)
-                {
-                    return Ok(new APIListOfEntityResponse<TEntity>()
-                    {
-                        Success = true,
-                        Data = result
-                    });
-                }
-                else
-                {
-                    return Ok(new APIListOfEntityResponse<TEntity>()
-                    {
-                        Success = false,
-                        ErrorMessages = new List<string>() { "No Entities Found" },
-                        Data = null
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                // log exception here
-                return StatusCode(500);
-            }
-        }
-
-        [HttpPost]
-        public async Task<ActionResult<APIEntityResponse<TEntity>>> Post([FromBody] TEntity Entity)
-        {
-            try
-            {
-                await repository.Insert(Entity);
-                return Ok(new APIEntityResponse<TEntity>()
-                {
-                    Success = true,
-                    Data = Entity
+                    Success = false,
+                    ErrorMessages = new List<string>() { "No Entities Found" },
+                    Data = null
                 });
             }
-            catch (Exception ex)
+        }
+        catch (Exception ex)
+        {
+            // log exception here
+            return StatusCode(500);
+        }
+    }
+
+    [HttpPost]
+    public async Task<ActionResult<APIEntityResponse<TEntity>>> Post([FromBody] TEntity Entity)
+    {
+        try
+        {
+            await repository.Insert(Entity);
+            return Ok(new APIEntityResponse<TEntity>()
             {
-                // log exception here
+                Success = true,
+                Data = Entity
+            });
+        }
+        catch (Exception ex)
+        {
+            // log exception here
+            return StatusCode(500);
+        }
+    }
+
+    [HttpPut]
+    public async Task<ActionResult<APIEntityResponse<TEntity>>> Put([FromBody] TEntity Entity)
+    {
+        try
+        {
+            await repository.Update(Entity);
+            return Ok(new APIEntityResponse<TEntity>()
+            {
+                Success = true,
+                Data = Entity
+            });
+        }
+        catch (Exception ex)
+        {
+            // log exception here
+            return StatusCode(500);
+        }
+    }
+
+    [HttpDelete("{PropertyName}/{Value}/DeleteByValue")]
+    public async Task<ActionResult> DeleteByValue(string PropertyName, string Value)
+    {
+        try
+        {
+            var IdProperty = typeof(TEntity).GetProperty(PropertyName);
+            var entity = (from x in repository.dbSet.ToList()
+                          where IdProperty.GetValue(x).ToString() == Value
+                          select x).FirstOrDefault();
+
+            if (entity != null)
+            {
+                await repository.Delete(entity);
+                return NoContent();
+            }
+            else
+            {
                 return StatusCode(500);
             }
         }
-
-        [HttpPut]
-        public async Task<ActionResult<APIEntityResponse<TEntity>>> Put([FromBody] TEntity Entity)
+        catch (Exception ex)
         {
-            try
-            {
-                await repository.Update(Entity);
-                return Ok(new APIEntityResponse<TEntity>()
-                {
-                    Success = true,
-                    Data = Entity
-                });
-            }
-            catch (Exception ex)
-            {
-                // log exception here
-                return StatusCode(500);
-            }
-        }
-
-        [HttpDelete("{PropertyName}/{Value}/DeleteByValue")]
-        public async Task<ActionResult> DeleteByValue(string PropertyName, string Value)
-        {
-            try
-            {
-                var IdProperty = typeof(TEntity).GetProperty(PropertyName);
-                var entity = (from x in repository.dbSet.ToList()
-                              where IdProperty.GetValue(x).ToString() == Value
-                              select x).FirstOrDefault();
-
-                if (entity != null)
-                {
-                    await repository.Delete(entity);
-                    return NoContent();
-                }
-                else
-                {
-                    return StatusCode(500);
-                }
-            }
-            catch (Exception ex)
-            {
-                // log exception here
-                var msg = ex.Message;
-                return StatusCode(500);
-            }
+            // log exception here
+            var msg = ex.Message;
+            return StatusCode(500);
         }
     }
 }
@@ -412,7 +402,7 @@ namespace LowCodeAPI.Server.Controllers
 
 ### APIRepository.cs
 
-This implementation of `IRepository` goes in the *Client* project's *Services* folder. It can be re-used to access any controller.
+This implementation of `IRepository` goes in the *Client* project's *Services* folder. It can be re-used to access any controller. You will need to install the latest `Newtonsoft.Json` package.
 
 ```c#
 using System;
@@ -426,165 +416,161 @@ using System.Net;
 using System.Linq.Expressions;
 using System.Linq;
 
-namespace LowCodeAPI.Client.Services
+/// <summary>
+/// Reusable API Repository base class that provides access to CRUD APIs
+/// </summary>
+/// <typeparam name="TEntity"></typeparam>
+public class APIRepository<TEntity> : IRepository<TEntity>
+    where TEntity : class
 {
-    /// <summary>
-    /// Reusable API Repository base class that provides access to CRUD APIs
-    /// </summary>
-    /// <typeparam name="TEntity"></typeparam>
-    public class APIRepository<TEntity> : IRepository<TEntity> 
-        where TEntity : class
+    string controllerName;
+    string primaryKeyName;
+    HttpClient http;
+
+    public APIRepository(HttpClient _http, string _controllerName, string _primaryKeyName)
     {
-        string controllerName;
-        string primaryKeyName;
-        HttpClient http;
+        http = _http;
+        controllerName = _controllerName;
+        primaryKeyName = _primaryKeyName;
+    }
 
-        public APIRepository(HttpClient _http, string _controllerName, string _primaryKeyName)
+
+    public async Task<IEnumerable<TEntity>> GetAll()
+    {
+        try
         {
-            http = _http;
-            controllerName = _controllerName;
-            primaryKeyName = _primaryKeyName;
+            var result = await http.GetAsync(controllerName);
+            result.EnsureSuccessStatusCode();
+            string responseBody = await result.Content.ReadAsStringAsync();
+            var response = JsonConvert.DeserializeObject<APIListOfEntityResponse<TEntity>>(responseBody);
+            if (response.Success)
+                return response.Data;
+            else
+                return new List<TEntity>();
         }
-
-
-        public async Task<IEnumerable<TEntity>> GetAll()
+        catch (Exception ex)
         {
-            try
-            {
-                var result = await http.GetAsync(controllerName);
-                result.EnsureSuccessStatusCode();
-                string responseBody = await result.Content.ReadAsStringAsync();
-                var response = JsonConvert.DeserializeObject<APIListOfEntityResponse<TEntity>>(responseBody);
-                if (response.Success)
-                    return response.Data;
-                else
-                    return new List<TEntity>();
-            }
-            catch (Exception ex)
-            {
-                var msg = ex.Message;
+            var msg = ex.Message;
+            return null;
+        }
+    }
+
+    public Task<IEnumerable<TEntity>> Get(Expression<Func<TEntity, bool>> filter = null, Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>> orderBy = null, string includeProperties = "")
+    {
+        throw new NotImplementedException();
+    }
+
+    public async Task<TEntity> GetByValue(string PropertyName, string Value)
+    {
+        try
+        {
+
+            var url = $"{controllerName}/{WebUtility.HtmlEncode(PropertyName)}/{WebUtility.HtmlEncode(Value)}/GetByValue";
+            var result = await http.GetAsync(url);
+            result.EnsureSuccessStatusCode();
+            string responseBody = await result.Content.ReadAsStringAsync();
+            var response = JsonConvert.DeserializeObject<APIEntityResponse<TEntity>>(responseBody);
+            if (response.Success)
+                return response.Data;
+            else
                 return null;
-            }
         }
-
-        public Task<IEnumerable<TEntity>> Get(Expression<Func<TEntity, bool>> filter = null, Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>> orderBy = null, string includeProperties = "")
+        catch (Exception ex)
         {
-            throw new NotImplementedException();
+            var msg = ex.Message;
+            return null;
         }
+    }
 
-        public async Task<TEntity> GetByValue(string PropertyName, string Value)
+    public async Task<IEnumerable<TEntity>> SearchByValue(string PropertyName, string Value)
+    {
+        try
         {
-            try
-            {
-                
-                var url = $"{controllerName}/{WebUtility.HtmlEncode(PropertyName)}/{WebUtility.HtmlEncode(Value)}/GetByValue";
-                var result = await http.GetAsync(url);
-                result.EnsureSuccessStatusCode();
-                string responseBody = await result.Content.ReadAsStringAsync();
-                var response = JsonConvert.DeserializeObject<APIEntityResponse<TEntity>>(responseBody);
-                if (response.Success)
-                    return response.Data;
-                else
-                    return null;
-            }
-            catch (Exception ex)
-            {
-                var msg = ex.Message;
+            var url = $"{controllerName}/{WebUtility.HtmlEncode(PropertyName)}/{WebUtility.HtmlEncode(Value)}/SearchByValue";
+            var result = await http.GetAsync(url);
+            result.EnsureSuccessStatusCode();
+            string responseBody = await result.Content.ReadAsStringAsync();
+            var response = JsonConvert.DeserializeObject<APIListOfEntityResponse<TEntity>>(responseBody);
+            if (response.Success)
+                return response.Data;
+            else
                 return null;
-            }
         }
-
-        public async Task<IEnumerable<TEntity>> SearchByValue(string PropertyName, string Value)
+        catch (Exception ex)
         {
-            try
-            {
-                var url = $"{controllerName}/{WebUtility.HtmlEncode(PropertyName)}/{WebUtility.HtmlEncode(Value)}/SearchByValue";
-                var result = await http.GetAsync(url);
-                result.EnsureSuccessStatusCode();
-                string responseBody = await result.Content.ReadAsStringAsync();
-                var response = JsonConvert.DeserializeObject<APIListOfEntityResponse<TEntity>>(responseBody);
-                if (response.Success)
-                    return response.Data;
-                else
-                    return null;
-            }
-            catch (Exception ex)
-            {
-                var msg = ex.Message;
+            var msg = ex.Message;
+            return null;
+        }
+    }
+
+    public async Task<TEntity> Insert(TEntity entity)
+    {
+        try
+        {
+            var result = await http.PostAsJsonAsync(controllerName, entity);
+            result.EnsureSuccessStatusCode();
+            string responseBody = await result.Content.ReadAsStringAsync();
+            var response = JsonConvert.DeserializeObject<APIEntityResponse<TEntity>>(responseBody);
+            if (response.Success)
+                return response.Data;
+            else
                 return null;
-            }
         }
-
-        public async Task<TEntity> Insert(TEntity entity)
+        catch (Exception ex)
         {
-            try
-            {
-                var result = await http.PostAsJsonAsync(controllerName, entity);
-                result.EnsureSuccessStatusCode();
-                string responseBody = await result.Content.ReadAsStringAsync();
-                var response = JsonConvert.DeserializeObject<APIEntityResponse<TEntity>>(responseBody);
-                if (response.Success)
-                    return response.Data;
-                else
-                    return null;
-            }
-            catch (Exception ex)
-            {
+            return null;
+        }
+    }
+
+    public async Task<TEntity> Update(TEntity entityToUpdate)
+    {
+        try
+        {
+            var result = await http.PutAsJsonAsync(controllerName, entityToUpdate);
+            result.EnsureSuccessStatusCode();
+            string responseBody = await result.Content.ReadAsStringAsync();
+            var response = JsonConvert.DeserializeObject<APIEntityResponse<TEntity>>(responseBody);
+            if (response.Success)
+                return response.Data;
+            else
                 return null;
-            }
         }
-
-        public async Task<TEntity> Update(TEntity entityToUpdate)
+        catch (Exception ex)
         {
-            try
-            {
-                var result = await http.PutAsJsonAsync(controllerName, entityToUpdate);
-                result.EnsureSuccessStatusCode();
-                string responseBody = await result.Content.ReadAsStringAsync();
-                var response = JsonConvert.DeserializeObject<APIEntityResponse<TEntity>>(responseBody);
-                if (response.Success)
-                    return response.Data;
-                else
-                    return null;
-            }
-            catch (Exception ex)
-            {
-                return null;
-            }
+            return null;
         }
+    }
 
-        public async Task<bool> Delete(TEntity entityToDelete)
+    public async Task<bool> Delete(TEntity entityToDelete)
+    {
+        try
         {
-            try
-            {
-                var value = entityToDelete.GetType()
-                    .GetProperty(primaryKeyName)
-                    .GetValue(entityToDelete, null)
-                    .ToString();
+            var value = entityToDelete.GetType()
+                .GetProperty(primaryKeyName)
+                .GetValue(entityToDelete, null)
+                .ToString();
 
-                return await DeleteByValue(primaryKeyName, value);
-            }
-            catch (Exception ex)
-            {
-                return false;
-            }
+            return await DeleteByValue(primaryKeyName, value);
         }
-
-        public async Task<bool> DeleteByValue(string PropertyName, string Value)
+        catch (Exception ex)
         {
-            try
-            {
-                var url = $"{controllerName}/{WebUtility.HtmlEncode(PropertyName)}/{WebUtility.HtmlEncode(Value)}/DeleteByValue";
-                var result = await http.DeleteAsync(url);
-                result.EnsureSuccessStatusCode();
-                return true;
-            }
-            catch (Exception ex)
-            {
-                return false;
-            }
+            return false;
         }
+    }
 
+    public async Task<bool> DeleteByValue(string PropertyName, string Value)
+    {
+        try
+        {
+            var url = $"{controllerName}/{WebUtility.HtmlEncode(PropertyName)}/{WebUtility.HtmlEncode(Value)}/DeleteByValue";
+            var result = await http.DeleteAsync(url);
+            result.EnsureSuccessStatusCode();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            return false;
+        }
     }
 }
 ```
@@ -610,16 +596,16 @@ namespace LowCodeAPI.Server.Controllers
 {
     [Route("[controller]")]
     [ApiController]
-    public class AuthorsController : EFControllerBase<Authors, pubsContext>
+    public class AuthorsController : EFControllerBase<Author, pubsContext>
     {
-        EFRepository<Authors, pubsContext> repository;
+        EFRepository<Author, pubsContext> repository;
 
-        public AuthorsController(EFRepository<Authors, pubsContext> _repository) 
+        public AuthorsController(EFRepository<Author, pubsContext> _repository)
             : base(_repository)
         {
             repository = _repository;
         }
-        
+
     }
 }
 ```
@@ -637,7 +623,7 @@ public void ConfigureServices(IServiceCollection services)
     services.AddTransient<pubsContext, pubsContext>();
 
     // Next, add an EFRepository for each model you want a controller for
-    services.AddTransient<EFRepository<Authors, pubsContext>>();
+    services.AddTransient<EFRepository<Author, pubsContext>>();
 
     services.AddControllersWithViews();
     services.AddRazorPages();
@@ -726,6 +712,7 @@ And finally, here is our Index page, which lists the authors, and allows CRUD op
     <button @onclick="GetAllAuthors">Show All</button>
     @if (CanIAddaAuthor())
     {
+        <span>&nbsp;</span>
         <button @onclick="AddAuthor">Add Author</button>
     }
     <br />
@@ -758,8 +745,8 @@ else
 
 @code
 {
-    List<Authors> Authors;
-    Authors Author;
+    List<Author> Authors;
+    Author Author;
     string SearchName = "";
     string ErrorMessage = "";
 
@@ -813,11 +800,11 @@ else
         var result = await AuthorsManager.SearchByValue("AuLname", SearchName);
         if (result != null)
         {
-            Authors = result.ToList<Authors>();
+            Authors = result.ToList<Author>();
         }
         else
         {
-            Authors = new List<Authors>();
+            Authors = new List<Author>();
             ErrorMessage = "No matching Authors.";
         }
         await InvokeAsync(StateHasChanged);
@@ -834,7 +821,7 @@ else
         }
         else
         {
-            Authors = new List<Authors>();
+            Authors = new List<Author>();
             ErrorMessage = "No matching Authors.";
         }
         await InvokeAsync(StateHasChanged);
@@ -868,7 +855,7 @@ else
     async Task AddAuthor()
     {
         ErrorMessage = "";
-        var Author = new Authors();
+        var Author = new Author();
         Author.AuId = "111-22-3333";
         Author.AuFname = "Carl";
         Author.AuLname = "Franklin";
@@ -901,7 +888,7 @@ else
             var result = await AuthorsManager.GetAll();
             if (result != null)
             {
-                Authors = result.ToList<Authors>();
+                Authors = result.ToList<Author>();
                 Author = null;
             }
             else
