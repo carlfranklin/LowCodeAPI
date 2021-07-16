@@ -2,6 +2,8 @@
 
 LowCodeAPI is a set of .NET 5 classes and interfaces that reduce the amount of boilerplate code necessary for any ASP.NET web project.
 
+> ## **Warning: It is not recommended to expose your EF Entities directly to the client. This is a demo of how to generate controllers for in-house applications only. Do not use it in production.**
+
 ## Sample App
 
 This repo not only has the generic files you will need, but also a sample Blazor WebAssembly app. You do not need to run the Sample App to use the framework. If you just want to get to the goods, skip over the steps to run the sample app.
