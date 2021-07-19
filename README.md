@@ -2,7 +2,7 @@
 
 LowCodeAPI is a set of .NET 5 classes and interfaces that reduce the amount of boilerplate code necessary for any ASP.NET web project.
 
-> ## **Warning: It is not recommended to expose your EF Entities directly to the client. This is a demo of how to generate controllers for in-house applications only. Do not use it in production.**
+> ## **Warning: It is not recommended to expose your EF Entities directly to the client. This is a demo of how to generate controllers for in-house applications only. Do not use it for public applications.**
 
 ## Sample App
 
